@@ -1,0 +1,161 @@
+<!DOCTYPE index.html>
+<html lang="de">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Fahrgemeinschaftsrechner (vereinfacht)</title>
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      background-color: #f7f7f7;
+      color: #333;
+      margin: 0;
+      padding: 20px;
+    }
+    h1 { text-align: center; margin-bottom: 25px; }
+    .container {
+      max-width: 900px;
+      margin: 0 auto;
+      background: white;
+      padding: 25px;
+      border-radius: 10px;
+      box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+    }
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      margin-top: 15px;
+    }
+    th, td {
+      border: 1px solid #ddd;
+      padding: 8px;
+      text-align: center;
+    }
+    th { background-color: #eee; }
+    input[type="number"], input[type="text"] {
+      width: 95%;
+      padding: 5px;
+      box-sizing: border-box;
+    }
+    button {
+      margin-top: 15px;
+      background-color: #4CAF50;
+      color: white;
+      border: none;
+      padding: 10px 20px;
+      border-radius: 5px;
+      cursor: pointer;
+      font-size: 14px;
+    }
+    button:hover { background-color: #45a049; }
+    .add-btn { background-color: #007BFF; }
+    .add-btn:hover { background-color: #0069d9; }
+    .result {
+      margin-top: 25px;
+      padding: 15px;
+      background-color: #eef6ef;
+      border: 1px solid #c6e1c8;
+      border-radius: 8px;
+    }
+  </style>
+</head>
+<body>
+  <h1>Fahrgemeinschaftsrechner</h1>
+  <div class="container">
+    <label>Grundstrecke pro Fahrt (km): 
+      <input type="number" id="strecke" value="40" step="1">
+    </label><br><br>
+
+    <label>Benzinpreis (€ / Liter): 
+      <input type="number" id="preis" value="1.90" step="0.01">
+    </label><br><br>
+
+    <label>Durchschnittsverbrauch (Liter / 100 km): 
+      <input type="number" id="verbrauch" value="7" step="0.1">
+    </label>
+
+    <table id="table">
+      <thead>
+        <tr>
+          <th>Name</th>
+          <th>Mitfahrten</th>
+          <th>Fahrten als Fahrer</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td><input type="text" value="Person 1"></td>
+          <td><input type="number" value="0"></td>
+          <td><input type="number" value="0"></td>
+        </tr>
+      </tbody>
+    </table>
+
+    <button class="add-btn" onclick="addRow()">+ Person hinzufügen</button>
+    <button onclick="calculate()">Berechnen</button>
+
+    <div id="result" class="result" style="display:none;"></div>
+  </div>
+
+  <script>
+    function addRow() {
+      const table = document.querySelector("#table tbody");
+      const row = document.createElement("tr");
+      row.innerHTML = `
+        <td><input type="text" placeholder="Name"></td>
+        <td><input type="number" value="0"></td>
+        <td><input type="number" value="0"></td>
+      `;
+      table.appendChild(row);
+    }
+
+    function calculate() {
+      const strecke = parseFloat(document.getElementById("strecke").value);
+      const preis = parseFloat(document.getElementById("preis").value);
+      const verbrauch = parseFloat(document.getElementById("verbrauch").value);
+
+      const rows = document.querySelectorAll("#table tbody tr");
+      let personen = [];
+      let gesamtMitfahrten = 0;
+
+      rows.forEach(row => {
+        const name = row.cells[0].querySelector("input").value || "Unbekannt";
+        const mitfahrten = parseFloat(row.cells[1].querySelector("input").value) || 0;
+        const fahrten = parseFloat(row.cells[2].querySelector("input").value) || 0;
+
+        // Fahrerfahrten werden nicht in Mitfahrer-Kilometer gezählt
+        gesamtMitfahrten += mitfahrten;
+        personen.push({ name, mitfahrten, fahrten });
+      });
+
+      // Gesamtkilometer = Mitfahrten × Grundstrecke
+      const gesamtKm = gesamtMitfahrten * strecke;
+      const gesamtVerbrauch = gesamtKm * (verbrauch / 100);
+      const gesamtKosten = gesamtVerbrauch * preis;
+
+      let output = `<h3>Ergebnis</h3>`;
+      output += `<p><strong>Grundstrecke:</strong> ${strecke} km<br>`;
+      output += `<strong>Gesamte Mitfahrer-Kilometer:</strong> ${gesamtKm.toFixed(1)} km<br>`;
+      output += `<strong>Gesamtverbrauch:</strong> ${gesamtVerbrauch.toFixed(2)} L<br>`;
+      output += `<strong>Gesamtkosten:</strong> ${gesamtKosten.toFixed(2)} €</p>`;
+      output += `<table><tr><th>Name</th><th>Mitfahrten</th><th>Fahrten (Fahrer)</th><th>Anteil (%)</th><th>Kostenanteil (€)</th></tr>`;
+
+      personen.forEach(p => {
+        const anteil = p.mitfahrten / gesamtMitfahrten;
+        const kosten = anteil * gesamtKosten;
+        output += `<tr>
+          <td>${p.name}</td>
+          <td>${p.mitfahrten}</td>
+          <td>${p.fahrten}</td>
+          <td>${(anteil * 100).toFixed(1)}%</td>
+          <td>${kosten.toFixed(2)}</td>
+        </tr>`;
+      });
+
+      output += `</table>`;
+      document.getElementById("result").style.display = "block";
+      document.getElementById("result").innerHTML = output;
+    }
+  </script>
+</body>
+</index.html>
