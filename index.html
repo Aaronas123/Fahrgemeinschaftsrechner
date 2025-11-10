@@ -1,23 +1,23 @@
-<!DOCTYPE index.html>
+<!DOCTYPE html>
 <html lang="de">
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Fahrgemeinschaftsrechner (vereinfacht)</title>
+  <title>Fahrgemeinschaftsrechner (exaktes Modell)</title>
   <style>
     body {
       font-family: Arial, sans-serif;
       background-color: #f7f7f7;
-      color: #333;
       margin: 0;
       padding: 20px;
+      color: #333;
     }
-    h1 { text-align: center; margin-bottom: 25px; }
+    h1, h2 { text-align: center; }
     .container {
-      max-width: 900px;
+      max-width: 1000px;
       margin: 0 auto;
       background: white;
-      padding: 25px;
+      padding: 20px;
       border-radius: 10px;
       box-shadow: 0 2px 8px rgba(0,0,0,0.1);
     }
@@ -60,90 +60,87 @@
   </style>
 </head>
 <body>
-  <h1>Fahrgemeinschaftsrechner</h1>
+  <h1>Fahrgemeinschaftsrechner (exaktes Modell)</h1>
   <div class="container">
     <label>Grundstrecke pro Fahrt (km): 
       <input type="number" id="strecke" value="40" step="1">
     </label><br><br>
-
     <label>Benzinpreis (€ / Liter): 
       <input type="number" id="preis" value="1.90" step="0.01">
     </label><br><br>
-
     <label>Durchschnittsverbrauch (Liter / 100 km): 
       <input type="number" id="verbrauch" value="7" step="0.1">
-    </label>
+    </label><br><br>
 
-    <table id="table">
+    <h2>Teilnehmer</h2>
+    <table id="personTable">
       <thead>
         <tr>
           <th>Name</th>
-          <th>Mitfahrten</th>
-          <th>Fahrten als Fahrer</th>
+          <th>Anzahl Fahrten als Fahrer</th>
         </tr>
       </thead>
       <tbody>
         <tr>
           <td><input type="text" value="Person 1"></td>
-          <td><input type="number" value="0" class="mitfahrt"></td>
-          <td><input type="number" value="0" class="fahrer"></td>
+          <td><input type="number" value="0"></td>
         </tr>
       </tbody>
     </table>
+    <button class="add-btn" onclick="addPerson()">+ Person hinzufügen</button>
+    <button onclick="generateDrives()">Fahrten anlegen</button>
 
-    <button class="add-btn" onclick="addRow()">+ Person hinzufügen</button>
-    <button onclick="calculate()">Berechnen</button>
+    <div id="driveSection" style="display:none;">
+      <h2>Fahrtenübersicht</h2>
+      <div id="drives"></div>
+      <button onclick="calculate()">Berechnen</button>
+    </div>
 
     <div id="result" class="result" style="display:none;"></div>
   </div>
 
   <script>
-    function addRow() {
-      const table = document.querySelector("#table tbody");
+    function addPerson() {
+      const tbody = document.querySelector("#personTable tbody");
       const row = document.createElement("tr");
       row.innerHTML = `
         <td><input type="text" placeholder="Name"></td>
-        <td><input type="number" value="0" class="mitfahrt"></td>
-        <td><input type="number" value="0" class="fahrer"></td>
+        <td><input type="number" value="0"></td>
       `;
-      table.appendChild(row);
-      attachListeners();
+      tbody.appendChild(row);
     }
 
-    function attachListeners() {
-      document.querySelectorAll(".fahrer").forEach(input => {
-        input.removeEventListener("input", updateMaxMitfahrten);
-        input.addEventListener("input", updateMaxMitfahrten);
-      });
-      document.querySelectorAll(".mitfahrt").forEach(input => {
-        input.removeEventListener("input", limitMitfahrten);
-        input.addEventListener("input", limitMitfahrten);
-      });
-    }
-
-    function updateMaxMitfahrten() {
-      // Gesamtsumme der Fahrerfahrten bestimmen
-      const fahrerInputs = document.querySelectorAll(".fahrer");
-      let summeFahrerFahrten = 0;
-      fahrerInputs.forEach(f => {
-        summeFahrerFahrten += parseFloat(f.value) || 0;
+    function generateDrives() {
+      const personen = [];
+      document.querySelectorAll("#personTable tbody tr").forEach(row => {
+        const name = row.cells[0].querySelector("input").value.trim();
+        const fahrten = parseInt(row.cells[1].querySelector("input").value) || 0;
+        if (name) personen.push({ name, fahrten });
       });
 
-      // Limit für alle Mitfahrten-Felder setzen
-      document.querySelectorAll(".mitfahrt").forEach(m => {
-        m.max = summeFahrerFahrten;
-        if (parseFloat(m.value) > summeFahrerFahrten) {
-          m.value = summeFahrerFahrten;
+      const driveContainer = document.getElementById("drives");
+      driveContainer.innerHTML = "";
+
+      personen.forEach(person => {
+        for (let i = 1; i <= person.fahrten; i++) {
+          const div = document.createElement("div");
+          div.classList.add("drive-block");
+          div.innerHTML = `
+            <h3>${person.name} – Fahrt ${i}</h3>
+            <table>
+              <tr><th>Mitfahrer</th><th>Fährt mit?</th></tr>
+              ${personen.map(p => 
+                p.name === person.name 
+                  ? `<tr><td>${p.name} (Fahrer)</td><td>–</td></tr>`
+                  : `<tr><td>${p.name}</td><td><input type="checkbox" data-fahrer="${person.name}" data-mitfahrer="${p.name}"></td></tr>`
+              ).join("")}
+            </table><br>
+          `;
+          driveContainer.appendChild(div);
         }
       });
-    }
 
-    function limitMitfahrten(e) {
-      const input = e.target;
-      const max = parseFloat(input.max) || 0;
-      if (parseFloat(input.value) > max) {
-        input.value = max;
-      }
+      document.getElementById("driveSection").style.display = "block";
     }
 
     function calculate() {
@@ -151,51 +148,50 @@
       const preis = parseFloat(document.getElementById("preis").value);
       const verbrauch = parseFloat(document.getElementById("verbrauch").value);
 
-      const rows = document.querySelectorAll("#table tbody tr");
-      let personen = [];
-      let gesamtMitfahrten = 0;
+      const kmKosten = strecke * (verbrauch / 100) * preis;
 
-      rows.forEach(row => {
-        const name = row.cells[0].querySelector("input").value || "Unbekannt";
-        const mitfahrten = parseFloat(row.cells[1].querySelector("input").value) || 0;
-        const fahrten = parseFloat(row.cells[2].querySelector("input").value) || 0;
-
-        gesamtMitfahrten += mitfahrten;
-        personen.push({ name, mitfahrten, fahrten });
+      // Fahrten analysieren
+      const fahrten = {};
+      document.querySelectorAll("input[type='checkbox']").forEach(cb => {
+        const fahrer = cb.dataset.fahrer;
+        const mitfahrer = cb.dataset.mitfahrer;
+        if (!fahrten[fahrer]) fahrten[fahrer] = [];
+        if (!fahrten[fahrer].includes("init")) fahrten[fahrer].push({}); // Dummy for structure
       });
 
-      const gesamtKm = gesamtMitfahrten * strecke;
-      const gesamtVerbrauch = gesamtKm * (verbrauch / 100);
-      const gesamtKosten = gesamtVerbrauch * preis;
+      // Wir zählen jede Fahrt einzeln
+      const driveBlocks = document.querySelectorAll(".drive-block");
+      let personenKosten = {};
 
+      driveBlocks.forEach(block => {
+        const fahrerName = block.querySelector("h3").textContent.split(" – ")[0];
+        const checkboxes = block.querySelectorAll("input[type='checkbox']");
+        const mitfahrer = [fahrerName]; // Fahrer ist immer dabei
+        checkboxes.forEach(cb => { if (cb.checked) mitfahrer.push(cb.dataset.mitfahrer); });
+
+        const personenProFahrt = mitfahrer.length;
+        const kostenProPerson = kmKosten / personenProFahrt;
+
+        mitfahrer.forEach(p => {
+          if (!personenKosten[p]) personenKosten[p] = 0;
+          personenKosten[p] += kostenProPerson;
+        });
+      });
+
+      // Ausgabe
       let output = `<h3>Ergebnis</h3>`;
-      output += `<p><strong>Grundstrecke:</strong> ${strecke} km<br>`;
-      output += `<strong>Gesamte Mitfahrer-Kilometer:</strong> ${gesamtKm.toFixed(1)} km<br>`;
-      output += `<strong>Gesamtverbrauch:</strong> ${gesamtVerbrauch.toFixed(2)} L<br>`;
-      output += `<strong>Gesamtkosten:</strong> ${gesamtKosten.toFixed(2)} €</p>`;
-      output += `<table><tr><th>Name</th><th>Mitfahrten</th><th>Fahrten (Fahrer)</th><th>Anteil (%)</th><th>Kostenanteil (€)</th></tr>`;
+      output += `<p><strong>Strecke pro Fahrt:</strong> ${strecke} km<br>`;
+      output += `<strong>Kosten pro Fahrt (einzeln):</strong> ${kmKosten.toFixed(2)} €</p>`;
+      output += `<table><tr><th>Name</th><th>Kostenanteil (€)</th></tr>`;
 
-      personen.forEach(p => {
-        const anteil = p.mitfahrten / gesamtMitfahrten;
-        const kosten = anteil * gesamtKosten;
-        output += `<tr>
-          <td>${p.name}</td>
-          <td>${p.mitfahrten}</td>
-          <td>${p.fahrten}</td>
-          <td>${(anteil * 100).toFixed(1)}%</td>
-          <td>${kosten.toFixed(2)}</td>
-        </tr>`;
-      });
-
+      for (const [name, kosten] of Object.entries(personenKosten)) {
+        output += `<tr><td>${name}</td><td>${kosten.toFixed(2)}</td></tr>`;
+      }
       output += `</table>`;
+
       document.getElementById("result").style.display = "block";
       document.getElementById("result").innerHTML = output;
     }
-
-    // Initiale Listener aktivieren
-    attachListeners();
   </script>
 </body>
-</index.html>
-</body>
-</index.html>
+</html>
