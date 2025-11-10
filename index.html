@@ -85,8 +85,8 @@
       <tbody>
         <tr>
           <td><input type="text" value="Person 1"></td>
-          <td><input type="number" value="0"></td>
-          <td><input type="number" value="0"></td>
+          <td><input type="number" value="0" class="mitfahrt"></td>
+          <td><input type="number" value="0" class="fahrer"></td>
         </tr>
       </tbody>
     </table>
@@ -103,10 +103,47 @@
       const row = document.createElement("tr");
       row.innerHTML = `
         <td><input type="text" placeholder="Name"></td>
-        <td><input type="number" value="0"></td>
-        <td><input type="number" value="0"></td>
+        <td><input type="number" value="0" class="mitfahrt"></td>
+        <td><input type="number" value="0" class="fahrer"></td>
       `;
       table.appendChild(row);
+      attachListeners();
+    }
+
+    function attachListeners() {
+      document.querySelectorAll(".fahrer").forEach(input => {
+        input.removeEventListener("input", updateMaxMitfahrten);
+        input.addEventListener("input", updateMaxMitfahrten);
+      });
+      document.querySelectorAll(".mitfahrt").forEach(input => {
+        input.removeEventListener("input", limitMitfahrten);
+        input.addEventListener("input", limitMitfahrten);
+      });
+    }
+
+    function updateMaxMitfahrten() {
+      // Gesamtsumme der Fahrerfahrten bestimmen
+      const fahrerInputs = document.querySelectorAll(".fahrer");
+      let summeFahrerFahrten = 0;
+      fahrerInputs.forEach(f => {
+        summeFahrerFahrten += parseFloat(f.value) || 0;
+      });
+
+      // Limit für alle Mitfahrten-Felder setzen
+      document.querySelectorAll(".mitfahrt").forEach(m => {
+        m.max = summeFahrerFahrten;
+        if (parseFloat(m.value) > summeFahrerFahrten) {
+          m.value = summeFahrerFahrten;
+        }
+      });
+    }
+
+    function limitMitfahrten(e) {
+      const input = e.target;
+      const max = parseFloat(input.max) || 0;
+      if (parseFloat(input.value) > max) {
+        input.value = max;
+      }
     }
 
     function calculate() {
@@ -123,12 +160,10 @@
         const mitfahrten = parseFloat(row.cells[1].querySelector("input").value) || 0;
         const fahrten = parseFloat(row.cells[2].querySelector("input").value) || 0;
 
-        // Fahrerfahrten werden nicht in Mitfahrer-Kilometer gezählt
         gesamtMitfahrten += mitfahrten;
         personen.push({ name, mitfahrten, fahrten });
       });
 
-      // Gesamtkilometer = Mitfahrten × Grundstrecke
       const gesamtKm = gesamtMitfahrten * strecke;
       const gesamtVerbrauch = gesamtKm * (verbrauch / 100);
       const gesamtKosten = gesamtVerbrauch * preis;
@@ -156,6 +191,11 @@
       document.getElementById("result").style.display = "block";
       document.getElementById("result").innerHTML = output;
     }
+
+    // Initiale Listener aktivieren
+    attachListeners();
   </script>
+</body>
+</index.html>
 </body>
 </index.html>
