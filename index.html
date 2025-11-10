@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Fahrgemeinschaftsrechner (exaktes Modell)</title>
+  <title>Fahrgemeinschaftsrechner (exaktes Modell mit Verrechnung)</title>
   <style>
     body {
       font-family: Arial, sans-serif;
@@ -60,7 +60,7 @@
   </style>
 </head>
 <body>
-  <h1>Fahrgemeinschaftsrechner (exaktes Modell)</h1>
+  <h1>Fahrgemeinschaftsrechner (exaktes Modell mit Verrechnung)</h1>
   <div class="container">
     <label>Grundstrecke pro Fahrt (km): 
       <input type="number" id="strecke" value="40" step="1">
@@ -147,21 +147,11 @@
       const strecke = parseFloat(document.getElementById("strecke").value);
       const preis = parseFloat(document.getElementById("preis").value);
       const verbrauch = parseFloat(document.getElementById("verbrauch").value);
-
       const kmKosten = strecke * (verbrauch / 100) * preis;
 
-      // Fahrten analysieren
-      const fahrten = {};
-      document.querySelectorAll("input[type='checkbox']").forEach(cb => {
-        const fahrer = cb.dataset.fahrer;
-        const mitfahrer = cb.dataset.mitfahrer;
-        if (!fahrten[fahrer]) fahrten[fahrer] = [];
-        if (!fahrten[fahrer].includes("init")) fahrten[fahrer].push({}); // Dummy for structure
-      });
-
-      // Wir zählen jede Fahrt einzeln
       const driveBlocks = document.querySelectorAll(".drive-block");
-      let personenKosten = {};
+      let personenKosten = {};  // tatsächliche Kosten, die jede Person trägt
+      let personenSoll = {};    // wie viel jede Person zahlen müsste insgesamt
 
       driveBlocks.forEach(block => {
         const fahrerName = block.querySelector("h3").textContent.split(" – ")[0];
@@ -171,27 +161,70 @@
 
         const personenProFahrt = mitfahrer.length;
         const kostenProPerson = kmKosten / personenProFahrt;
+        const fahrerKosten = kmKosten; // Fahrer bezahlt den Sprit
 
+        // Fahrer zahlt volle Fahrtkosten
+        personenKosten[fahrerName] = (personenKosten[fahrerName] || 0) + fahrerKosten;
+
+        // Jeder (inkl. Fahrer) hat denselben Sollanteil
         mitfahrer.forEach(p => {
-          if (!personenKosten[p]) personenKosten[p] = 0;
-          personenKosten[p] += kostenProPerson;
+          personenSoll[p] = (personenSoll[p] || 0) + kostenProPerson;
         });
+      });
+
+      // Saldo berechnen: positiver Wert = bekommt Geld, negativer = muss zahlen
+      let saldo = {};
+      const alle = new Set([...Object.keys(personenKosten), ...Object.keys(personenSoll)]);
+      alle.forEach(name => {
+        const bezahlt = personenKosten[name] || 0;
+        const soll = personenSoll[name] || 0;
+        saldo[name] = bezahlt - soll;
+      });
+
+      // Verrechnung: wer wem wie viel schuldet
+      let schulden = [];
+      let schulder = Object.entries(saldo).filter(([n, v]) => v < -0.01);
+      let glaeubiger = Object.entries(saldo).filter(([n, v]) => v > 0.01);
+
+      schulder.forEach(([sName, sBetrag]) => {
+        sBetrag = Math.abs(sBetrag);
+        for (let i = 0; i < glaeubiger.length && sBetrag > 0; i++) {
+          let [gName, gBetrag] = glaeubiger[i];
+          const betrag = Math.min(sBetrag, gBetrag);
+          if (betrag > 0.01) {
+            schulden.push(`${sName} → ${gName}: ${betrag.toFixed(2)} €`);
+            sBetrag -= betrag;
+            glaeubiger[i][1] -= betrag;
+          }
+        }
       });
 
       // Ausgabe
       let output = `<h3>Ergebnis</h3>`;
-      output += `<p><strong>Strecke pro Fahrt:</strong> ${strecke} km<br>`;
-      output += `<strong>Kosten pro Fahrt (einzeln):</strong> ${kmKosten.toFixed(2)} €</p>`;
-      output += `<table><tr><th>Name</th><th>Kostenanteil (€)</th></tr>`;
-
-      for (const [name, kosten] of Object.entries(personenKosten)) {
-        output += `<tr><td>${name}</td><td>${kosten.toFixed(2)}</td></tr>`;
+      output += `<p><strong>Kosten pro Fahrt:</strong> ${kmKosten.toFixed(2)} €</p>`;
+      output += `<table><tr><th>Name</th><th>Bezahlt (€)</th><th>Soll (€)</th><th>Saldo (€)</th></tr>`;
+      for (const name of alle) {
+        output += `<tr>
+          <td>${name}</td>
+          <td>${(personenKosten[name] || 0).toFixed(2)}</td>
+          <td>${(personenSoll[name] || 0).toFixed(2)}</td>
+          <td>${saldo[name].toFixed(2)}</td>
+        </tr>`;
       }
-      output += `</table>`;
+      output += `</table><br>`;
+
+      output += `<h3>Ausgleichszahlungen</h3>`;
+      if (schulden.length === 0) {
+        output += `<p>Alle sind ausgeglichen – keine Zahlungen nötig 🎉</p>`;
+      } else {
+        output += `<ul>${schulden.map(s => `<li>${s}</li>`).join("")}</ul>`;
+      }
 
       document.getElementById("result").style.display = "block";
       document.getElementById("result").innerHTML = output;
     }
   </script>
+</body>
+</html>
 </body>
 </html>
